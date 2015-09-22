@@ -49,7 +49,7 @@ int getDirEntries(char* dirPath, char** out_entries, int** out_entry_indices) {
 		closedir(dir);
 	}
 	else {
-		printf("could not open directory");
+		return -1;
 	}
 	return nEntries;
 }
@@ -80,11 +80,11 @@ int stringLength(char* string1) {
 	return index;
 }
 
-// TODO: make relative path completion more robust
+// TODO: make relative path completion more robust - account for other drive names
 void fixPath(char** pNextDirPath, char** pCurDirPath, char** pTempDirPath) {
 	if ((*pNextDirPath)[0] == '.') {
 		if ((*pNextDirPath)[1] == '.') {
-			if (stringsAreEqual((*pCurDirPath), "C:\\\0") != 3) {
+			if (!((*pCurDirPath)[1] == ':' && (*pCurDirPath)[2] == '\\' && (*pCurDirPath)[3] == '\0')) {
 				// TODO: go up a dir
 				int secondToLastSlashIndex = 0;
 				int lastSlashIndex = 0;
@@ -115,7 +115,7 @@ void fixPath(char** pNextDirPath, char** pCurDirPath, char** pTempDirPath) {
 			}
 		}
 	}
-	else if (stringsAreEqual((*pNextDirPath), "C:\\\0") == 0) {
+	else if (!((*pNextDirPath)[1] == ':' && (*pNextDirPath)[2] == '\\')) {
 		int index = 0;
 		while ((*pCurDirPath)[index] != '\0') {
 			(*pTempDirPath)[index] = (*pCurDirPath)[index];
@@ -143,8 +143,10 @@ void gotoXY(int x, int y)
 	SetConsoleCursorPosition(hStdOut, coord);
 }
 
+// TODO: clean up code into smaller functions
+
 int main(int argc, char **argv)
-{	
+{
 	char nextDirPath[512];
 	char tempDirPath[512];
 	char curDirPath[512];
@@ -160,36 +162,79 @@ int main(int argc, char **argv)
 	int curEntryIndex = 0;
 
 	// TODO: print out help text
-	// TODO: check working directory when called so I can call confilex .
-	char* dirPath =  "C:\\\0";
-	if(argc == 2) {
-		dirPath = argv[1];
-	}
-	
-	int initialCurDirPathIndex = 0;
-	while(dirPath[initialCurDirPathIndex] != '\0') {
-		pCurDirPath[initialCurDirPathIndex] = dirPath[initialCurDirPathIndex];
-		initialCurDirPathIndex++;
-	}
-	pCurDirPath[initialCurDirPathIndex] = '\0';
-	
-	system("cls");
-	nEntries = getDirEntries(dirPath, &pDirEntries, &pDirEntryIndices);
-	printf(pDirEntries);
-	
-	while(1) {
-		//scanf("%s", pNextDirPath);
 
-		// TODO: allow opening of files
-		// TODO: let user type out a full path if they hit a certain button
+	// get current working directory
+	_getcwd(curDirPath, sizeof(curDirPath));
+	// if user specifies an initial path, go to that path
+	if(argc == 2) {
+		int index = 0;
+		while(argv[1][index] != '\0') {
+			pNextDirPath[index] = argv[1][index];
+			index++;
+		}
+		pNextDirPath[index] = '\0';
+		fixPath(&pNextDirPath, &pCurDirPath, &pTempDirPath);
+	}
+	else {
+		// otherwise, use the current working directory
+		int index = 0;
+		while(pCurDirPath[index] != '\0') {
+			pNextDirPath[index] = pCurDirPath[index];
+			index++;
+		}
+		pNextDirPath[index] = '\0';
+	}
+
+	system("cls");
+	int lastNEntries = nEntries;
+	nEntries = getDirEntries(pNextDirPath, &pDirEntries, &pDirEntryIndices);
+	printf(pDirEntries);
+
+	if(nEntries == -1) {
+		nEntries = lastNEntries;
+		gotoXY(0, nEntries + 1);
+		printf("Couldn't open direcotry");
+		int index = 0;
+		while(pCurDirPath[index] != '\0') {
+			pNextDirPath[index] = pCurDirPath[index];
+			index++;
+		}
+		pNextDirPath[index] = '\0';
+	}
+
+	if(pDirEntries[0] == '.') {
+		curEntryIndex = 2;
 		gotoXY(0, curEntryIndex);
+	}
+	else {
+		curEntryIndex = 0;
+		gotoXY(0, curEntryIndex);
+	}
+
+	// fix current directory trailing backslash
+	int index4 = 0;
+	while(pNextDirPath[index4] != '\0') {
+		pCurDirPath[index4] = pNextDirPath[index4];
+		index4++;
+	}
+	if (pCurDirPath[index4 - 1] == '/') {
+		pCurDirPath[index4 - 1] = '\\';
+	}
+	if (pCurDirPath[index4 - 1] != '\\') {
+		pCurDirPath[index4] = '\\';
+		pCurDirPath[index4 + 1] = '\0';
+	}
+
+	while(1) {
 nextAction:
 		{
 			char action = getch();
 			switch (action)
 			{
+			case 'i':
+			case 'I':
 			case 'w':
-			case 'W': {
+			case 'W': { // go up an entry
 				if (curEntryIndex > 0) {
 					curEntryIndex--;
 					gotoXY(0, curEntryIndex);
@@ -197,16 +242,19 @@ nextAction:
 				goto nextAction;
 				break;
 			}
+			case 'j':
+			case 'J':
 			case 'a':
 			case 'A': {
-				// TODO: save previous paths and entry indexes and go to them here (store the previous indices in a linked list)
 				pNextDirPath[0] = '.';
 				pNextDirPath[1] = '.';
 				pNextDirPath[2] = '\0';
 				break;
 			}
+			case 'k':
+			case 'K':
 			case 's':
-			case 'S': {
+			case 'S': { // go down an entry
 				if (curEntryIndex < nEntries - 1) {
 					curEntryIndex++;
 					gotoXY(0, curEntryIndex);
@@ -214,8 +262,10 @@ nextAction:
 				goto nextAction;
 				break;
 			}
+			case 'l':
+			case 'L':
 			case 'd':
-			case 'D': {
+			case 'D': { // go into directory
 				int index = pDirEntryIndices[curEntryIndex];
 				int index2 = 0;
 				while (pDirEntries[index] != '\n') {
@@ -224,8 +274,39 @@ nextAction:
 					index2++;
 				}
 				pNextDirPath[index2] = '\0';
+				if(pNextDirPath[0] == '.' && pNextDirPath[1] == '\0') {
+					goto nextAction;
+				}
 				break;
 			}
+			case 'o':
+			case 'O':
+			case 'f':
+			case 'F': { // open file
+				int index = pDirEntryIndices[curEntryIndex];
+				int index2 = 0;
+				while (pDirEntries[index] != '\n') {
+					pNextDirPath[index2] = pDirEntries[index];
+					index++;
+					index2++;
+				}
+				pNextDirPath[index2] = '\0';
+				fixPath(&pNextDirPath, &pCurDirPath, &pTempDirPath);
+				ShellExecute(0, 0, nextDirPath, 0, 0, SW_SHOW);
+				goto nextAction;
+				break;
+			}
+			case 'u':
+			case 'U':
+			case 'q':
+			case 'Q': { // let user type out full path
+				curEntryIndex = nEntries;
+				gotoXY(0, curEntryIndex);
+				scanf("%s", pNextDirPath);
+				break;
+			}
+			case 'p':
+			case 'P':
 			case 'e':
 			case 'E':
 				goto exit;
@@ -235,14 +316,33 @@ nextAction:
 			}
 			}
 		}
-		curEntryIndex = 0;
-		gotoXY(0, curEntryIndex);
-
 		fixPath(&pNextDirPath, &pCurDirPath, &pTempDirPath);
-		
+
 		system("cls");
+		lastNEntries = nEntries;
 		nEntries = getDirEntries(pNextDirPath, &pDirEntries, &pDirEntryIndices);
 		printf(pDirEntries);
+
+		if(nEntries == -1) {
+			nEntries = lastNEntries;
+			gotoXY(0, nEntries + 1);
+			printf("Couldn't open directory");
+			int index = 0;
+			while(pCurDirPath[index] != '\0') {
+				pNextDirPath[index] = pCurDirPath[index];
+				index++;
+			}
+			pNextDirPath[index] = '\0';
+		}
+
+		if(pDirEntries[0] == '.') {
+			curEntryIndex = 2;
+			gotoXY(0, curEntryIndex);
+		}
+		else {
+			curEntryIndex = 0;
+			gotoXY(0, curEntryIndex);
+		}
 
 		int index3 = 0;
 		while(pNextDirPath[index3] != '\0') {
@@ -257,7 +357,7 @@ nextAction:
 			pCurDirPath[index3 + 1] = '\0';
 		}
 	}
-	
+
 exit:
 	system("cls");
 	return 0;
