@@ -82,7 +82,7 @@ int stringLength(char* string1) {
 
 // TODO: make relative path completion more robust - account for other drive names
 void fixPath(char** pNextDirPath, char** pCurDirPath, char** pTempDirPath) {
-	if ((*pNextDirPath)[0] == '.') {
+	if ((*pNextDirPath)[0] == '.' && ((*pNextDirPath)[1] == '\0' || (*pNextDirPath)[2] == '\0')) {
 		if ((*pNextDirPath)[1] == '.') {
 			if (!((*pCurDirPath)[1] == ':' && (*pCurDirPath)[2] == '\\' && (*pCurDirPath)[3] == '\0')) {
 				// TODO: go up a dir
@@ -144,6 +144,10 @@ void gotoXY(int x, int y)
 }
 
 // TODO: clean up code into smaller functions
+// TODO: new button to type starting with current direcotry
+// TODO: tab completion when typing
+// TODO: cut, copy, paste, delete
+// TODO: file properties
 
 int main(int argc, char **argv)
 {
