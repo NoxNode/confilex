@@ -80,7 +80,6 @@ int stringLength(char* string1) {
 	return index;
 }
 
-// TODO: make relative path completion more robust - account for other drive names
 void fixPath(char** pNextDirPath, char** pCurDirPath, char** pTempDirPath) {
 	if ((*pNextDirPath)[0] == '.' && ((*pNextDirPath)[1] == '\0' || (*pNextDirPath)[2] == '\0')) {
 		if ((*pNextDirPath)[1] == '.') {
@@ -114,6 +113,14 @@ void fixPath(char** pNextDirPath, char** pCurDirPath, char** pTempDirPath) {
 				(*pNextDirPath)[index] = '\0';
 			}
 		}
+		else {
+			int index = 0;
+			while ((*pCurDirPath)[index] != '\0') {
+				(*pNextDirPath)[index] = (*pCurDirPath)[index];
+				index++;
+			}
+			(*pNextDirPath)[index] = '\0';
+		}
 	}
 	else if (!((*pNextDirPath)[1] == ':' && (*pNextDirPath)[2] == '\\')) {
 		int index = 0;
@@ -144,8 +151,8 @@ void gotoXY(int x, int y)
 }
 
 // TODO: clean up code into smaller functions
-// TODO: new button to type starting with current direcotry
-// TODO: tab completion when typing
+// TODO: split pNextDirPath by '\\'s and fixPath for each part
+// TODO: tab completion when typing or just go to whichever matches it when they hit enter (like to go into confilex just type c if there's no other directories starting with c)
 // TODO: cut, copy, paste, delete
 // TODO: file properties
 
@@ -164,6 +171,7 @@ int main(int argc, char **argv)
 
 	int nEntries = 0;
 	int curEntryIndex = 0;
+	int curDirPathLength = 0;
 
 	// TODO: print out help text
 
@@ -221,12 +229,16 @@ int main(int argc, char **argv)
 		pCurDirPath[index4] = pNextDirPath[index4];
 		index4++;
 	}
+	pCurDirPath[index4] = '\0';
+	curDirPathLength = index4;
 	if (pCurDirPath[index4 - 1] == '/') {
 		pCurDirPath[index4 - 1] = '\\';
+		curDirPathLength = index4;
 	}
 	if (pCurDirPath[index4 - 1] != '\\') {
 		pCurDirPath[index4] = '\\';
 		pCurDirPath[index4 + 1] = '\0';
+		curDirPathLength = index4 + 1;
 	}
 
 	while(1) {
@@ -249,7 +261,7 @@ nextAction:
 			case 'j':
 			case 'J':
 			case 'a':
-			case 'A': {
+			case 'A': { // go to parent directory
 				pNextDirPath[0] = '.';
 				pNextDirPath[1] = '.';
 				pNextDirPath[2] = '\0';
@@ -309,6 +321,17 @@ nextAction:
 				scanf("%s", pNextDirPath);
 				break;
 			}
+			case 'z':
+			case 'Z':
+			case 'm':
+			case 'M': { // let user type out full path starting with current
+				curEntryIndex = nEntries;
+				gotoXY(0, curEntryIndex);
+				printf("%s", pCurDirPath);
+				gotoXY(curDirPathLength, curEntryIndex);
+				scanf("%s", pNextDirPath);
+				break;
+			}
 			case 'p':
 			case 'P':
 			case 'e':
@@ -353,12 +376,15 @@ nextAction:
 			pCurDirPath[index3] = pNextDirPath[index3];
 			index3++;
 		}
+		pCurDirPath[index3] = '\0';
+		curDirPathLength = index3;
 		if (pCurDirPath[index3 - 1] == '/') {
 			pCurDirPath[index3 - 1] = '\\';
 		}
 		if (pCurDirPath[index3 - 1] != '\\') {
 			pCurDirPath[index3] = '\\';
 			pCurDirPath[index3 + 1] = '\0';
+			curDirPathLength = index3 + 1;
 		}
 	}
 
