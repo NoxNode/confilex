@@ -3,11 +3,17 @@ A console file explorer all in C. Open confilex.c for TODOs.
 
 Usage:
 
-W or I to go up
+W to go up an entry
+
+I to go up 5 entries
+
+S to go down an entry
+
+K to go down 5 entries
+
+G to go to type the entry index to go to
 
 A or J to go to parent directory
-
-S or K to go down
 
 D or L to go into selected directory (doesn't work for files)
 
@@ -19,4 +25,6 @@ Z or M to type the directory you want to go to next, but it starts at your curre
 
 C to copy current directory to clipboard
 
-E or P to exit
+P to change the console directory to the current confilex directory (doesn't do anything yet)
+
+E to exit

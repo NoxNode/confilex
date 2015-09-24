@@ -20,6 +20,12 @@
 // TODO: file properties
 // TODO: make the action keys rebindable with a config.txt file
 
+// TODO: store and echo multiple directories for the current session
+// TODO: save stored directories to a file
+// TODO: load saved directories from file
+
+// TODO: exit and change to current directory
+
 //////////////////////////////////// general util function headers - for more details, go to the implementations ////////////////////////////////////
 
 void copyStringToClipboard(char* string1, int length);
@@ -31,6 +37,7 @@ void removeCharsAfterSecondToLastBackslash(char** pCurDirPath);
 void gotoXY(int x, int y);
 
 //void splitString();
+//void concatString();
 
 //////////////////////////////////// program specific function headers - for more details, go to the implementations ////////////////////////////////////
 
@@ -91,14 +98,65 @@ nextAction:
 			char action = getch();
 			switch (action)
 			{
-			case 'i':
-			case 'I':
 			case 'w':
 			case 'W': { // go up an entry
-				if (curEntryIndex > 0) {
-					curEntryIndex--;
-					gotoXY(0, curEntryIndex);
+				curEntryIndex--;
+				if (curEntryIndex < 0) {
+					curEntryIndex = 0;
 				}
+				gotoXY(0, curEntryIndex);
+				goto nextAction;
+				break;
+			}
+			case 's':
+			case 'S': { // go down an entry
+				curEntryIndex++;
+				if (curEntryIndex >= nEntries) {
+					curEntryIndex = nEntries - 1;
+				}
+				gotoXY(0, curEntryIndex);
+				goto nextAction;
+				break;
+			}
+			case 'i':
+			case 'I': { // go up 5 entries
+				curEntryIndex -= 5;
+				if (curEntryIndex < 0) {
+					curEntryIndex = 0;
+				}
+				gotoXY(0, curEntryIndex);
+				goto nextAction;
+				break;
+			}
+			case 'k':
+			case 'K': { // go down 5 entries
+				curEntryIndex += 5;
+				if (curEntryIndex >= nEntries) {
+					curEntryIndex = nEntries - 1;
+				}
+				gotoXY(0, curEntryIndex);
+				goto nextAction;
+				break;
+			}
+			case 'g':
+			case 'G': { // go to n entrie
+				// go to last line so they don't have to write over an entry
+				curEntryIndex = nEntries;
+				gotoXY(0, curEntryIndex);
+				
+				// get entry index from user
+				scanf("%i", &curEntryIndex);
+				
+				// make sure its in range
+				if (curEntryIndex < 0) {
+					curEntryIndex = 0;
+				}
+				if (curEntryIndex >= nEntries) {
+					curEntryIndex = nEntries - 1;
+				}
+				
+				// go to that index
+				gotoXY(0, curEntryIndex);
 				goto nextAction;
 				break;
 			}
@@ -109,17 +167,6 @@ nextAction:
 				pNextDirPath[0] = '.';
 				pNextDirPath[1] = '.';
 				pNextDirPath[2] = '\0';
-				break;
-			}
-			case 'k':
-			case 'K':
-			case 's':
-			case 'S': { // go down an entry
-				if (curEntryIndex < nEntries - 1) {
-					curEntryIndex++;
-					gotoXY(0, curEntryIndex);
-				}
-				goto nextAction;
 				break;
 			}
 			case 'l':
@@ -190,7 +237,11 @@ nextAction:
 				break;
 			}
 			case 'p':
-			case 'P':
+			case 'P': {
+				// concatString("cd ", pCurDirPath, out_string);
+				// system(out_string);
+				goto nextAction;
+			}
 			case 'e':
 			case 'E':
 				goto exit;
@@ -207,6 +258,7 @@ nextAction:
 
 		fixPath(&pNextDirPath, &pCurDirPath, &pTempDirPath);
 
+		// TODO: add '\\' in fixPath instead of in displayAndUpdateCurDir so in completePath I can display C:\ instead of getting error that C: isn't a directory
 		// complete path
 
 		// end loop through each nextDir
