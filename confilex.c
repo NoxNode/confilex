@@ -7,6 +7,7 @@
 
 #define MAX_PATH 260
 #define MAX_ENTRIES 1024
+#define MAX_STORED_ENTRIES 32
 
 // Windows only program
 // Made by NoxNode (https://github.com/noxnode/)
@@ -16,15 +17,13 @@
 
 // TODO: split pNextDirPath by '\\'s and fixPath for each part
 // TODO: tab completion when typing or just go to whichever most matches it when they hit enter (like to go into confilex just type c if there's no other directories starting with c)
-// TODO: cut, copy, paste, delete
+// TODO: cut, copy, paste, delete - press f then either x (cut), c (copy), v (paste), or o (open) files
 // TODO: file properties
 // TODO: make the action keys rebindable with a config.txt file
 
 // TODO: store and echo multiple directories for the current session
 // TODO: save stored directories to a file
 // TODO: load saved directories from file
-
-// TODO: exit and change to current directory
 
 //////////////////////////////////// general util function headers - for more details, go to the implementations ////////////////////////////////////
 
@@ -56,11 +55,13 @@ int main(int argc, char **argv) {
 	char curDirPath[MAX_PATH];
 	char dirEntries[MAX_ENTRIES * MAX_PATH];
 	int dirEntryIndices[MAX_ENTRIES];
+	char storedDirEntries[MAX_STORED_ENTRIES * MAX_PATH];
 	char* pNextDirPath = &nextDirPath[0];
 	char* pTempDirPath = &tempDirPath[0];
 	char* pCurDirPath = &curDirPath[0];
 	char* pDirEntries = &dirEntries[0];
 	int* pDirEntryIndices = &dirEntryIndices[0];
+	char* pStoredDirEntries = &storedDirEntries[0];
 
 	int nEntries = 0;
 	int curEntryIndex = 0;
@@ -106,7 +107,6 @@ nextAction:
 				}
 				gotoXY(0, curEntryIndex);
 				goto nextAction;
-				break;
 			}
 			case 's':
 			case 'S': { // go down an entry
@@ -116,7 +116,6 @@ nextAction:
 				}
 				gotoXY(0, curEntryIndex);
 				goto nextAction;
-				break;
 			}
 			case 'i':
 			case 'I': { // go up 5 entries
@@ -126,7 +125,6 @@ nextAction:
 				}
 				gotoXY(0, curEntryIndex);
 				goto nextAction;
-				break;
 			}
 			case 'k':
 			case 'K': { // go down 5 entries
@@ -136,7 +134,6 @@ nextAction:
 				}
 				gotoXY(0, curEntryIndex);
 				goto nextAction;
-				break;
 			}
 			case 'g':
 			case 'G': { // go to n entrie
@@ -146,6 +143,10 @@ nextAction:
 				
 				// get entry index from user
 				scanf("%i", &curEntryIndex);
+				
+				// clear last line so if they do this twice they don't have to write over it
+				gotoXY(0, nEntries);
+				printf("%s", "       \0");
 				
 				// make sure its in range
 				if (curEntryIndex < 0) {
@@ -158,7 +159,6 @@ nextAction:
 				// go to that index
 				gotoXY(0, curEntryIndex);
 				goto nextAction;
-				break;
 			}
 			case 'j':
 			case 'J':
@@ -201,7 +201,6 @@ nextAction:
 				//can use system(), but it doesn't open console applications in a new window
 //				system(&(pNextDirPath[0]));
 				goto nextAction;
-				break;
 			}
 			case 'u':
 			case 'U':
@@ -231,23 +230,78 @@ nextAction:
 				scanf("%s", pNextDirPath);
 				break;
 			}
+			case 'x':
+			case 'X': { // TODO: test
+				// pStoredDirEntries index
+				int index = 0;
+				
+				// go to last line so they don't have to write over an entry
+				gotoXY(0, nEntries);
+				
+				// get entry index from user
+				scanf("%i", &index);
+				
+				// clear last line so if they do this twice they don't have to write over it
+				gotoXY(0, nEntries);
+				printf("%s", "       \0");
+				gotoXY(0, curEntryIndex);
+				
+				// make sure its in range
+				if (index < 0) {
+					index = 0;
+				}
+				if (index >= MAX_STORED_ENTRIES) {
+					index = MAX_STORED_ENTRIES - 1;
+				}
+
+				// store current directory into pStoredDirEntries at index n
+				copyStringIndex1 = MAX_PATH * index;
+				copyStringIndex2 = 0;
+				copyString(&pStoredDirEntries, &copyStringIndex1, &pCurDirPath, &copyStringIndex2, -1);
+				goto nextAction;
+			}
+			case 'n':
+			case 'N': {
+				// pStoredDirEntries index
+				int index = 0;
+				
+				// go to last line so they don't have to write over an entry
+				gotoXY(0, nEntries);
+				
+				// get entry index from user
+				scanf("%i", &index);
+				
+				// clear last line so if they do this twice they don't have to write over it
+				gotoXY(0, nEntries);
+				printf("%s", "       \0");
+				gotoXY(0, curEntryIndex);
+				
+				// make sure its in range
+				if (index < 0) {
+					index = 0;
+				}
+				if (index >= MAX_STORED_ENTRIES) {
+					index = MAX_STORED_ENTRIES - 1;
+				}
+
+				// echo directory at index n from pStoredDirEntries
+				copyStringToClipboard(&pStoredDirEntries[index * MAX_PATH], MAX_PATH);
+				goto nextAction;
+			}
+			case 'b':
+			case 'B':
 			case 'c':
 			case 'C': { // copy current directory to clipboard
 				copyStringToClipboard(pCurDirPath, curDirPathLength);
 				break;
 			}
 			case 'p':
-			case 'P': {
-				// concatString("cd ", pCurDirPath, out_string);
-				// system(out_string);
-				goto nextAction;
-			}
+			case 'P':
 			case 'e':
 			case 'E':
 				goto exit;
 			default: {
 				goto nextAction;
-				break;
 			}
 			}
 		}
