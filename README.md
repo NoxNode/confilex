@@ -9,14 +9,14 @@ A or J to go to parent directory
 
 S or K to go down
 
-D or L to go into selected directory (don't try it on files, it'll probably crash)
+D or L to go into selected directory (doesn't work for files)
 
-F or O to open the selected file
+F or O to open selected file (opens default explorer if directory selected)
 
 Q or U to type the directory you want to go to next
 
-E or P to exit
+Z or M to type the directory you want to go to next, but it starts at your current directory (can't backspace on the current directory, just use .. to go up a directory)
 
-Note: D and L only work on directories, you'll get an error message if you try to do these on files
-Note: Double press F or O to open a directory in File Explorer
-Known bug: sometimes going to parent directory doesn't work
+C to copy current directory to clipboard
+
+E or P to exit
