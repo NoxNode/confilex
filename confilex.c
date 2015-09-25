@@ -9,24 +9,30 @@
 #define MAX_ENTRIES 1024
 #define MAX_STORED_ENTRIES 32
 
+#define UNTIL_NULL -1
+#define UNTIL_NEW_LINE -2
+
 // Windows only program
 // Made by NoxNode (https://github.com/noxnode/)
 // search for "////////////////////////////////////" to see all the different parts of the program
 
 //////////////////////////////////// TODOs ////////////////////////////////////
 
+// fixing functionality TODOs
 // TODO: split pNextDirPath by '\\'s and fixPath for each part
 // TODO: tab completion when typing or just go to whichever most matches it when they hit enter (like to go into confilex just type c if there's no other directories starting with c)
-// TODO: cut, copy, paste, delete - press f then either x (cut), c (copy), v (paste), or o (open) files
-// TODO: file properties
-// TODO: make the action keys rebindable with a config.txt file
 
-// TODO: store and echo multiple directories for the current session
+// adding functionality TODOs
 // TODO: save stored directories to a file
 // TODO: load saved directories from file
 
+// graphical TODOs
+// TODO: status bar saying which action the user is currently doing?
+// TODO: show if entry is a directory or a file?
+
 //////////////////////////////////// general util function headers - for more details, go to the implementations ////////////////////////////////////
 
+void getStringFromClipboard(char** pTempDirPath);
 void copyStringToClipboard(char* string1, int length);
 void setConsoleColor(int color);
 int stringsEqual(char* string1, char* string2);
@@ -78,7 +84,7 @@ int main(int argc, char **argv) {
 	if(argc == 2) {
 		copyStringIndex1 = 0;
 		copyStringIndex2 = 0;
-		copyString(&pNextDirPath, &copyStringIndex1, &(argv[1]), &copyStringIndex2, -1);
+		copyString(&pNextDirPath, &copyStringIndex1, &(argv[1]), &copyStringIndex2, UNTIL_NULL);
 
 		fixPath(&pNextDirPath, &pCurDirPath, &pTempDirPath);
 	}
@@ -86,7 +92,7 @@ int main(int argc, char **argv) {
 		// otherwise, use the current working directory
 		copyStringIndex1 = 0;
 		copyStringIndex2 = 0;
-		copyString(&pNextDirPath, &copyStringIndex1, &pCurDirPath, &copyStringIndex2, -1);
+		copyString(&pNextDirPath, &copyStringIndex1, &pCurDirPath, &copyStringIndex2, UNTIL_NULL);
 	}
 	
 	displayAndUpdateCurDir(&pNextDirPath, &pCurDirPath, &pDirEntries,
@@ -108,6 +114,15 @@ nextAction:
 				gotoXY(0, curEntryIndex);
 				goto nextAction;
 			}
+			case 'j':
+			case 'J':
+			case 'a':
+			case 'A': { // go to parent directory
+				pNextDirPath[0] = '.';
+				pNextDirPath[1] = '.';
+				pNextDirPath[2] = '\0';
+				break;
+			}
 			case 's':
 			case 'S': { // go down an entry
 				curEntryIndex++;
@@ -116,6 +131,16 @@ nextAction:
 				}
 				gotoXY(0, curEntryIndex);
 				goto nextAction;
+			}
+			case 'l':
+			case 'L':
+			case 'd':
+			case 'D': { // go into directory
+				// copy dirEntries at the curEntryIndex until '\n' into pNextDirPath
+				copyStringIndex1 = 0;
+				copyStringIndex2 = pDirEntryIndices[curEntryIndex];
+				copyString(&pNextDirPath, &copyStringIndex1, &pDirEntries, &copyStringIndex2, UNTIL_NEW_LINE);
+				break;
 			}
 			case 'i':
 			case 'I': { // go up 5 entries
@@ -136,170 +161,243 @@ nextAction:
 				goto nextAction;
 			}
 			case 'g':
-			case 'G': { // go to n entrie
-				// go to last line so they don't have to write over an entry
-				curEntryIndex = nEntries;
-				gotoXY(0, curEntryIndex);
-				
-				// get entry index from user
-				scanf("%i", &curEntryIndex);
-				
-				// clear last line so if they do this twice they don't have to write over it
-				gotoXY(0, nEntries);
-				printf("%s", "       \0");
-				
-				// make sure its in range
-				if (curEntryIndex < 0) {
-					curEntryIndex = 0;
+			case 'G': {
+				char action2 = getch();
+				switch(action2) {
+				case 'e':
+				case 'E': { // go to n entry
+					// go to last line so they don't have to write over an entry
+					gotoXY(0, nEntries);
+					
+					// get entry index from user
+					scanf("%i", &curEntryIndex);
+					
+					// clear last line so if they do this twice they don't have to write over it
+					gotoXY(0, nEntries);
+					printf("%s", "       \0");
+					
+					// make sure its in range
+					if (curEntryIndex < 0) {
+						curEntryIndex = 0;
+					}
+					if (curEntryIndex >= nEntries) {
+						curEntryIndex = nEntries - 1;
+					}
+					
+					// go to that index
+					gotoXY(0, curEntryIndex);
+					goto nextAction;
 				}
-				if (curEntryIndex >= nEntries) {
-					curEntryIndex = nEntries - 1;
+				case 'a':
+				case 'A': { // add n to entry index
+					// go to last line so they don't have to write over an entry
+					gotoXY(0, nEntries);
+					
+					// get n from user and add it to curEntryIndex
+					int nToAddToCurEntry;
+					scanf("%i", &nToAddToCurEntry);
+					curEntryIndex += nToAddToCurEntry;
+					
+					// clear last line so if they do this twice they don't have to write over it
+					gotoXY(0, nEntries);
+					printf("%s", "       \0");
+					
+					// make sure its in range
+					if (curEntryIndex < 0) {
+						curEntryIndex = 0;
+					}
+					if (curEntryIndex >= nEntries) {
+						curEntryIndex = nEntries - 1;
+					}
+					
+					// go to that index
+					gotoXY(0, curEntryIndex);
+					goto nextAction;
 				}
-				
-				// go to that index
-				gotoXY(0, curEntryIndex);
-				goto nextAction;
-			}
-			case 'j':
-			case 'J':
-			case 'a':
-			case 'A': { // go to parent directory
-				pNextDirPath[0] = '.';
-				pNextDirPath[1] = '.';
-				pNextDirPath[2] = '\0';
+				case 'd':
+				case 'D': { // go to copied directory
+					// store copied directory into pNextDirPath
+					getStringFromClipboard(&pNextDirPath);
+					break;
+				}
+				default: {
+					goto nextAction;
+				}
+				}
 				break;
 			}
-			case 'l':
-			case 'L':
-			case 'd':
-			case 'D': { // go into directory
-				// copy dirEntries at the curEntryIndex until '\n' into pNextDirPath
-				copyStringIndex1 = 0;
-				copyStringIndex2 = pDirEntryIndices[curEntryIndex];
-				copyString(&pNextDirPath, &copyStringIndex1, &pDirEntries, &copyStringIndex2, -2);
+			case 't':
+			case 'T': {
+				char action2 = getch();
+				switch(action2) {
+				case 'd':
+				case 'D': { // type out directory
+					// go to last line so they don't have to write over an entry
+					curEntryIndex = nEntries;
+					gotoXY(0, curEntryIndex);
+					
+					// get user input
+					scanf("%s", pNextDirPath);
+					break;
+				}
+				case 'c':
+				case 'C': {
+					// go to last line so they don't have to write over an entry
+					curEntryIndex = nEntries;
+					gotoXY(0, curEntryIndex);
+					
+					// print current directory
+					printf("%s", pCurDirPath);
+					gotoXY(curDirPathLength, curEntryIndex);
+					
+					// get user input
+					scanf("%s", pNextDirPath);
+					break;
+				}
+				default: {
+					goto nextAction;
+				}
+				}
 				break;
 			}
 			case 'o':
-			case 'O':
-			case 'f':
-			case 'F': { // open selected file
+			case 'O': { // open selected entry
 				// copy dirEntries at the curEntryIndex until '\n' into pNextDirPath
 				copyStringIndex1 = 0;
 				copyStringIndex2 = pDirEntryIndices[curEntryIndex];
-				copyString(&pNextDirPath, &copyStringIndex1, &pDirEntries, &copyStringIndex2, -2);
+				copyString(&pNextDirPath, &copyStringIndex1, &pDirEntries, &copyStringIndex2, UNTIL_NEW_LINE);
 				
-				// fix relative path to file
+				// fix relative path to entry
 				fixPath(&pNextDirPath, &pCurDirPath, &pTempDirPath);
 				
 				// TODO: put quotes around path
 
-				// open file in default way
-				// for some reason when I compiled with VC ShellExecute doesn't work
-				// it works fine when compiling with MinGW tho
+				// open entry with default program
+				// for some reason, when I compiled with VC, ShellExecute doesn't work
+				// it works fine when compiling with MinGW, though
 				ShellExecute(0, 0, &(pNextDirPath[0]), 0, 0, SW_SHOW);
 
 				//can use system(), but it doesn't open console applications in a new window
-//				system(&(pNextDirPath[0]));
+				//system(&(pNextDirPath[0]));
 				goto nextAction;
-			}
-			case 'u':
-			case 'U':
-			case 'q':
-			case 'Q': { // let user type out full path
-				// go to last line so they don't have to write over an entry
-				curEntryIndex = nEntries;
-				gotoXY(0, curEntryIndex);
-				
-				// get user input
-				scanf("%s", pNextDirPath);
-				break;
-			}
-			case 'z':
-			case 'Z':
-			case 'm':
-			case 'M': { // let user type out full path starting with current
-				// go to last line so they don't have to write over an entry
-				curEntryIndex = nEntries;
-				gotoXY(0, curEntryIndex);
-				
-				// print current directory
-				printf("%s", pCurDirPath);
-				gotoXY(curDirPathLength, curEntryIndex);
-				
-				// get user input
-				scanf("%s", pNextDirPath);
-				break;
 			}
 			case 'x':
-			case 'X': { // TODO: test
-				// pStoredDirEntries index
-				int index = 0;
+			case 'X': { // cut / move copied entry into current directory
 				
-				// go to last line so they don't have to write over an entry
-				gotoXY(0, nEntries);
-				
-				// get entry index from user
-				scanf("%i", &index);
-				
-				// clear last line so if they do this twice they don't have to write over it
-				gotoXY(0, nEntries);
-				printf("%s", "       \0");
-				gotoXY(0, curEntryIndex);
-				
-				// make sure its in range
-				if (index < 0) {
-					index = 0;
-				}
-				if (index >= MAX_STORED_ENTRIES) {
-					index = MAX_STORED_ENTRIES - 1;
-				}
-
-				// store current directory into pStoredDirEntries at index n
-				copyStringIndex1 = MAX_PATH * index;
-				copyStringIndex2 = 0;
-				copyString(&pStoredDirEntries, &copyStringIndex1, &pCurDirPath, &copyStringIndex2, -1);
 				goto nextAction;
 			}
-			case 'n':
-			case 'N': {
-				// pStoredDirEntries index
-				int index = 0;
-				
-				// go to last line so they don't have to write over an entry
-				gotoXY(0, nEntries);
-				
-				// get entry index from user
-				scanf("%i", &index);
-				
-				// clear last line so if they do this twice they don't have to write over it
-				gotoXY(0, nEntries);
-				printf("%s", "       \0");
-				gotoXY(0, curEntryIndex);
-				
-				// make sure its in range
-				if (index < 0) {
-					index = 0;
-				}
-				if (index >= MAX_STORED_ENTRIES) {
-					index = MAX_STORED_ENTRIES - 1;
-				}
-
-				// echo directory at index n from pStoredDirEntries
-				copyStringToClipboard(&pStoredDirEntries[index * MAX_PATH], MAX_PATH);
-				goto nextAction;
-			}
-			case 'b':
-			case 'B':
 			case 'c':
-			case 'C': { // copy current directory to clipboard
-				copyStringToClipboard(pCurDirPath, curDirPathLength);
-				break;
+			case 'C': { // copy selected entry
+				
+				goto nextAction;
+			}
+			case 'v':
+			case 'V': { // paste copied entry into current directory
+				
+				goto nextAction;
+			}
+			case 'r':
+			case 'R': { // rename selected entry
+				
+				goto nextAction;
+			}
+			case 'z':
+			case 'Z': { // delete selected entry
+				
+				goto nextAction;
 			}
 			case 'p':
-			case 'P':
+			case 'P': { // edit properties of selected entry
+				
+				goto nextAction;
+			}
+			case 'q':
+			case 'Q': {
+				char action2 = getch();
+				switch(action2) {
+				case 's':
+				case 'S': { // store selected entry at slot n
+					// pStoredDirEntries index
+					int index = 0;
+					
+					// go to last line so they don't have to write over an entry
+					gotoXY(0, nEntries);
+					
+					// get entry index from user
+					scanf("%i", &index);
+					
+					// clear last line so if they do this twice they don't have to write over it
+					gotoXY(0, nEntries);
+					printf("%s", "       \0");
+					
+					// go back to last spot
+					gotoXY(0, curEntryIndex);
+					
+					// make sure its in range
+					if (index < 0) {
+						index = 0;
+					}
+					if (index >= MAX_STORED_ENTRIES) {
+						index = MAX_STORED_ENTRIES - 1;
+					}
+
+					// copy pCurDirPath into pTempDirPath
+					copyStringIndex1 = 0;
+					copyStringIndex2 = 0;
+					copyString(&pTempDirPath, &copyStringIndex1, &pCurDirPath, &copyStringIndex2, UNTIL_NULL);
+
+					// copy dirEntries at the curEntryIndex until '\n' into pTempDirPath
+					copyStringIndex2 = pDirEntryIndices[curEntryIndex];
+					copyString(&pTempDirPath, &copyStringIndex1, &pDirEntries, &copyStringIndex2, UNTIL_NEW_LINE);
+
+					// store pTempDirPath into pStoredDirEntries at index n
+					copyStringIndex1 = MAX_PATH * index;
+					copyStringIndex2 = 0;
+					copyString(&pStoredDirEntries, &copyStringIndex1, &pTempDirPath, &copyStringIndex2, UNTIL_NULL);
+					goto nextAction;
+				}
+				case 'c':
+				case 'C': { // copy stored entry at slot n to clipboard
+					// pStoredDirEntries index
+					int index = 0;
+					
+					// go to last line so they don't have to write over an entry
+					gotoXY(0, nEntries);
+					
+					// get entry index from user
+					scanf("%i", &index);
+					
+					// clear last line so if they do this twice they don't have to write over it
+					gotoXY(0, nEntries);
+					printf("%s", "       \0");
+					
+					// go back to last spot
+					gotoXY(0, curEntryIndex);
+					
+					// make sure its in range
+					if (index < 0) {
+						index = 0;
+					}
+					if (index >= MAX_STORED_ENTRIES) {
+						index = MAX_STORED_ENTRIES - 1;
+					}
+
+					// copy directory at index n from pStoredDirEntries into clipboard
+					copyStringToClipboard(&pStoredDirEntries[MAX_PATH * index], MAX_PATH);
+					goto nextAction;
+				}
+				case 'o':
+				case 'O': {
+					
+					goto nextAction;
+				}
+				}
+				break;
+			}
 			case 'e':
-			case 'E':
+			case 'E': {
 				goto exit;
+			}
 			default: {
 				goto nextAction;
 			}
@@ -327,6 +425,21 @@ exit:
 }
 
 //////////////////////////////////// general util function implementations ////////////////////////////////////
+
+void getStringFromClipboard(char** pTempDirPath) {
+	OpenClipboard(0);
+	HANDLE hData = GetClipboardData(CF_TEXT);
+	if(hData != 0) {
+		char* tempClipboardText = (char*)(GlobalLock(hData));
+		
+		int copyStringIndex1 = 0;
+		int copyStringIndex2 = 0;
+		copyString(pTempDirPath, &copyStringIndex1, &tempClipboardText, &copyStringIndex2, UNTIL_NULL);
+
+		GlobalUnlock(hData);
+	}
+	CloseClipboard();
+}
 
 void copyStringToClipboard(char* string1, int length) {
 	OpenClipboard(0);
@@ -382,7 +495,7 @@ int stringLength(char* string1) {
 void copyString(char** string1, int* in_out_index1, char** string2, int* in_out_index2, int length) {
 	int index1 = *in_out_index1;
 	int index2 = *in_out_index2;
-	if (length == -1) {
+	if (length == UNTIL_NULL) {
 		while ((*string2)[index2] != '\0') {
 			(*string1)[index1] = (*string2)[index2];
 			index1++;
@@ -390,7 +503,7 @@ void copyString(char** string1, int* in_out_index1, char** string2, int* in_out_
 		}
 		(*string1)[index1] = '\0';
 	}
-	else if (length == -2) {
+	else if (length == UNTIL_NEW_LINE) {
 		while ((*string2)[index2] != '\n') {
 			(*string1)[index1] = (*string2)[index2];
 			index1++;
@@ -478,17 +591,17 @@ void fixPath(char** pNextDirPath, char** pCurDirPath, char** pTempDirPath) {
 		}
 		copyStringIndex1 = 0;
 		copyStringIndex2 = 0;
-		copyString(pNextDirPath, &copyStringIndex1, pCurDirPath, &copyStringIndex2, -1);
+		copyString(pNextDirPath, &copyStringIndex1, pCurDirPath, &copyStringIndex2, UNTIL_NULL);
 	}
 	else if (!((*pNextDirPath)[1] == ':' && (*pNextDirPath)[2] == '\\')) { // if(not full path) { make relative path into a full path }
 		// copy current dir into temp
 		copyStringIndex1 = 0;
 		copyStringIndex2 = 0;
-		copyString(pTempDirPath, &copyStringIndex1, pCurDirPath, &copyStringIndex2, -1);
+		copyString(pTempDirPath, &copyStringIndex1, pCurDirPath, &copyStringIndex2, UNTIL_NULL);
 
 		// copy next relative dir into temp after current dir
 		copyStringIndex2 = 0;
-		copyString(pTempDirPath, &copyStringIndex1, pNextDirPath, &copyStringIndex2, -1);
+		copyString(pTempDirPath, &copyStringIndex1, pNextDirPath, &copyStringIndex2, UNTIL_NULL);
 		
 		// swap temp and next to get full path
 		char* temp = (*pNextDirPath);
@@ -516,7 +629,7 @@ void displayAndUpdateCurDir(char** pNextDirPath, char** pCurDirPath, char** pDir
 		
 		copyStringIndex1 = 0;
 		copyStringIndex2 = 0;
-		copyString(pNextDirPath, &copyStringIndex1, pCurDirPath, &copyStringIndex2, -1);
+		copyString(pNextDirPath, &copyStringIndex1, pCurDirPath, &copyStringIndex2, UNTIL_NULL);
 	}
 
 	// set console cursor position to first entry
@@ -532,7 +645,7 @@ void displayAndUpdateCurDir(char** pNextDirPath, char** pCurDirPath, char** pDir
 	// copy new directory into current directory
 	copyStringIndex1 = 0;
 	copyStringIndex2 = 0;
-	copyString(pCurDirPath, &copyStringIndex1, pNextDirPath, &copyStringIndex2, -1);
+	copyString(pCurDirPath, &copyStringIndex1, pNextDirPath, &copyStringIndex2, UNTIL_NULL);
 	
 	// fix current directory trailing backslash and set curDirPathLength
 	*curDirPathLength = copyStringIndex1;
