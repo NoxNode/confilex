@@ -21,10 +21,13 @@
 // fixing functionality TODOs
 // TODO: split pNextDirPath by '\\'s and fixPath for each part
 // TODO: tab completion when typing or just go to whichever most matches it when they hit enter (like to go into confilex just type c if there's no other directories starting with c)
+// TODO: if system command is cd, run SetCurrentDirectory (windows) or chdir (linux)
+// TODO: make everything linux compatible
 
 // adding functionality TODOs
 // TODO: save stored directories to a file
 // TODO: load saved directories from file
+// TODO: select multiple entries at the same time
 
 // graphical TODOs
 // TODO: status bar saying which action the user is currently doing?
@@ -38,6 +41,7 @@ void setConsoleColor(int color);
 int stringsEqual(char* string1, char* string2);
 int stringLength(char* string1);
 void copyString(char** string1, int* in_out_index1, char** string2, int* in_out_index2, int length);
+void getCharsAfterSecondToLastBackslash(char** in_string, char** out_string, int* in_out_stringIndex);
 void removeCharsAfterSecondToLastBackslash(char** pCurDirPath);
 void gotoXY(int x, int y);
 
@@ -270,7 +274,7 @@ nextAction:
 				// fix relative path to entry
 				fixPath(&pNextDirPath, &pCurDirPath, &pTempDirPath);
 				
-				// TODO: put quotes around path
+				// TODO: put quotes around path?
 
 				// open entry with default program
 				// for some reason, when I compiled with VC, ShellExecute doesn't work
@@ -283,32 +287,163 @@ nextAction:
 			}
 			case 'x':
 			case 'X': { // cut / move copied entry into current directory
+				// store copied entry into pNextDirPath
+				getStringFromClipboard(&pNextDirPath);
+
+				// store current path into temp path
+				copyStringIndex1 = 0;
+				copyStringIndex2 = 0;
+				copyString(&pTempDirPath, &copyStringIndex1, &pCurDirPath, &copyStringIndex2, UNTIL_NULL);
 				
-				goto nextAction;
+				// add the name of the entry to the temp path after the current path to get the full new path
+				getCharsAfterSecondToLastBackslash(&pNextDirPath, &pTempDirPath, &copyStringIndex1);
+				
+				char* oldPath = pNextDirPath;
+				char* newPath = pTempDirPath;
+				int error = rename(oldPath, newPath);
+				if(error == EACCES) {
+					// new entry already exists, ask if user wants to replace it
+					// remove(old)
+					// rename(old, new)
+				}
+				pNextDirPath[0] = '.';
+				pNextDirPath[1] = '\0';
+				break;
 			}
 			case 'c':
 			case 'C': { // copy selected entry
-				
+				// copy pCurDirPath into pTempDirPath
+				copyStringIndex1 = 0;
+				copyStringIndex2 = 0;
+				copyString(&pTempDirPath, &copyStringIndex1, &pCurDirPath, &copyStringIndex2, UNTIL_NULL);
+
+				// copy dirEntries at the curEntryIndex until '\n' into pTempDirPath
+				copyStringIndex2 = pDirEntryIndices[curEntryIndex];
+				copyString(&pTempDirPath, &copyStringIndex1, &pDirEntries, &copyStringIndex2, UNTIL_NEW_LINE);
+
+				// copy pTempDirPath to clipboard
+				copyStringToClipboard(pTempDirPath, copyStringIndex1 + 1);
 				goto nextAction;
 			}
 			case 'v':
 			case 'V': { // paste copied entry into current directory
-				
-				goto nextAction;
+				// store copied entry into pNextDirPath
+				getStringFromClipboard(&pNextDirPath);
+
+				// store current path into temp path
+				copyStringIndex1 = 0;
+				copyStringIndex2 = 0;
+				copyString(&pTempDirPath, &copyStringIndex1, &pCurDirPath, &copyStringIndex2, UNTIL_NULL);
+
+				// add the name of the entry to the temp path after the current path to get the full new path
+				getCharsAfterSecondToLastBackslash(&pNextDirPath, &pTempDirPath, &copyStringIndex1);
+
+				char* oldPath = pNextDirPath;
+				char* newPath = pTempDirPath;
+
+				// TODO: support pasting files
+				// TODO: ask user if they want to replace the entry if it already exists
+
+				FILE* source;
+				source = fopen(oldPath, "r");
+				FILE* dest;
+				dest = fopen(newPath, "w");
+				if (source != NULL && dest != NULL) {
+					char c;
+					while ((c = fgetc(source)) != EOF) { //loop through and put each char from source to dest until EOF (end of file) of source
+						fputc(c, dest);
+					}
+				}
+				fclose(dest);
+				fclose(source);
+
+				pNextDirPath[0] = '.';
+				pNextDirPath[1] = '\0';
+				break;
 			}
 			case 'r':
 			case 'R': { // rename selected entry
+				// go to last line so they don't have to write over an entry
+				gotoXY(0, nEntries);
 				
-				goto nextAction;
+				// get user input
+				scanf("%s", pNextDirPath);
+
+				//get selected entry
+				{
+					// copy pCurDirPath into pTempDirPath
+					copyStringIndex1 = 0;
+					copyStringIndex2 = 0;
+					copyString(&pTempDirPath, &copyStringIndex1, &pCurDirPath, &copyStringIndex2, UNTIL_NULL);
+
+					// copy dirEntries at the curEntryIndex until '\n' into pTempDirPath
+					copyStringIndex2 = pDirEntryIndices[curEntryIndex];
+					copyString(&pTempDirPath, &copyStringIndex1, &pDirEntries, &copyStringIndex2, UNTIL_NEW_LINE);
+				}
+				
+				// copy pCurDirPath into pDirEntries (using pDirEntries as a temp buffer cuz it'll just be refilled once the dir is reloaded)
+				copyStringIndex1 = 0;
+				copyStringIndex2 = 0;
+				copyString(&pDirEntries, &copyStringIndex1, &pCurDirPath, &copyStringIndex2, UNTIL_NULL);
+				
+				// copy pNextDirPath into pDirEntries after the cur dir to get full path for newPath
+				copyStringIndex2 = 0;
+				copyString(&pDirEntries, &copyStringIndex1, &pNextDirPath, &copyStringIndex2, UNTIL_NULL);
+				
+				char* oldPath = pTempDirPath;
+				char* newPath = pDirEntries;
+				int error = rename(oldPath, newPath);
+				if(error == EACCES) {
+					// new entry already exists, ask if user wants to replace it
+					// remove(old)
+					// rename(old, new)
+				}
+
+				pNextDirPath[0] = '.';
+				pNextDirPath[1] = '\0';
+				break;
 			}
 			case 'z':
 			case 'Z': { // delete selected entry
-				
-				goto nextAction;
+				// copy pCurDirPath into pTempDirPath
+				copyStringIndex1 = 0;
+				copyStringIndex2 = 0;
+				copyString(&pTempDirPath, &copyStringIndex1, &pCurDirPath, &copyStringIndex2, UNTIL_NULL);
+
+				// copy dirEntries at the curEntryIndex until '\n' into pTempDirPath
+				copyStringIndex2 = pDirEntryIndices[curEntryIndex];
+				copyString(&pTempDirPath, &copyStringIndex1, &pDirEntries, &copyStringIndex2, UNTIL_NEW_LINE);
+
+				remove(pTempDirPath);
+
+				pNextDirPath[0] = '.';
+				pNextDirPath[1] = '\0';
+				break;
 			}
 			case 'p':
 			case 'P': { // edit properties of selected entry
 				
+				goto nextAction;
+			}
+			case 'f':
+			case 'F': { // run console command
+				// go to last line so they don't have to write over an entry
+				gotoXY(0, nEntries);
+				
+				// get user input
+				fgets(pTempDirPath, MAX_PATH, stdin);
+				
+				system(pTempDirPath);
+				
+				// if they run cls, re-print the dir entries
+				if(pTempDirPath[0] == 'c' && pTempDirPath[1] == 'l' && pTempDirPath[2] == 's') {
+					pNextDirPath[0] = '.';
+					pNextDirPath[1] = '\0';
+					break;
+				}
+				
+				// go to entry index where the user left off
+				gotoXY(0, curEntryIndex);
 				goto nextAction;
 			}
 			case 'q':
@@ -386,11 +521,6 @@ nextAction:
 					copyStringToClipboard(&pStoredDirEntries[MAX_PATH * index], MAX_PATH);
 					goto nextAction;
 				}
-				case 'o':
-				case 'O': {
-					
-					goto nextAction;
-				}
 				}
 				break;
 			}
@@ -444,12 +574,12 @@ void getStringFromClipboard(char** pTempDirPath) {
 void copyStringToClipboard(char* string1, int length) {
 	OpenClipboard(0);
 	EmptyClipboard();
-	HGLOBAL hg = GlobalAlloc(GMEM_MOVEABLE, length);
+	HGLOBAL hg = GlobalAlloc(GMEM_MOVEABLE, length + 1); // +1 to include the new line char
 	if (!hg) {
 		CloseClipboard();
 		return;
 	}
-	memcpy(GlobalLock(hg), string1, length);
+	memcpy(GlobalLock(hg), string1, length + 1); // +1 to include the new line char
 	GlobalUnlock(hg);
 	SetClipboardData(CF_TEXT, hg);
 	CloseClipboard();
@@ -521,6 +651,26 @@ void copyString(char** string1, int* in_out_index1, char** string2, int* in_out_
 	}
 	*in_out_index1 = index1;
 	*in_out_index2 = index2;
+}
+
+void getCharsAfterSecondToLastBackslash(char** in_string, char** out_string, int* in_out_stringIndex) {
+	int secondToLastSlashIndex = 0;
+	int lastSlashIndex = 0;
+	int index = 0;
+	while ((*in_string)[index] != '\0') {
+		secondToLastSlashIndex = lastSlashIndex;
+		if ((*in_string)[index] == '\\') {
+			lastSlashIndex = index;
+		}
+		index++;
+	}
+	secondToLastSlashIndex++;
+	while((*in_string)[secondToLastSlashIndex] != '\0') {
+		(*out_string)[*in_out_stringIndex] = (*in_string)[secondToLastSlashIndex];
+		*in_out_stringIndex = *in_out_stringIndex + 1;
+		secondToLastSlashIndex++;
+	}
+	(*out_string)[*in_out_stringIndex] = '\0';
 }
 
 void removeCharsAfterSecondToLastBackslash(char** pCurDirPath) {

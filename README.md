@@ -21,25 +21,25 @@ Navigation
 Operations
 	Open entry
 		O
-	Cut / Move copied entry into current directory - coming soon
+	Cut / Move copied entry into current directory
 		X
-	Copy selected entry - coming soon
+	Copy selected entry
 		C
-	Paste copied entry into current directory - coming soon
+	Paste copied entry into current directory (only works for files right now - can't paste directories)
 		V
-	Rename selected entry - coming soon
+	Rename selected entry
 		R
-	Delete selected entry - coming soon
+	Delete selected entry
 		Z
 	Properties of selected entry (edit default program to open with and other stuff) - coming soon
 		P
+	Run console command
+		F
 Storage
 	Store selected entry at slot n
 		QS
 	Copy stored entry at slot n to clipboard
 		QC
-	Operate on entry in clipboard - coming soon
-		QO
 Program
 	Exit
 		E
