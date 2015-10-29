@@ -30,6 +30,8 @@
 // TODO: select multiple entries at the same time
 
 // graphical TODOs
+// TODO: display current directory always
+// TODO: display copied directory
 // TODO: status bar saying which action the user is currently doing?
 // TODO: show if entry is a directory or a file?
 

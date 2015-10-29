@@ -31,8 +31,6 @@ Operations
 		R
 	Delete selected entry
 		Z
-	Properties of selected entry (edit default program to open with and other stuff) - coming soon
-		P
 	Run console command
 		F
 Storage
